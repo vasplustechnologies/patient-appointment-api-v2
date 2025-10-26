@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 ﻿# Patient Appointment API
 
 A simple Node.js API for managing patient appointments.
@@ -27,3 +28,7 @@ npm test
 # patient-appointment-api
 desc
 >>>>>>> 4e31db5babfb5ce7de71334abb1c350cfcf51ea8
+=======
+# patient-appointment-api-v2
+Some description for this will go here, patient-appointment-api-v2
+>>>>>>> 156fade898b1a3b20f469b8f9a8afc79e90300c0
