@@ -1,0 +1,118 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: patient-appointment-auto-build
+  annotations:
+    workflows.argoproj.io/description: "Auto-triggered build on GitHub push"
+spec:
+  entrypoint: main-pipeline
+  arguments:
+    parameters:
+    - name: repo-url
+      value: "https://github.com/vasplustechnologies/patient-appointment-api.git"
+    - name: branch
+      value: "main"
+    - name: image-name
+      value: "mofwili/patient-appointment-api"
+
+  # This allows the workflow to be submitted via API
+  serviceAccountName: argo-workflow-sa
+
+  templates:
+  - name: main-pipeline
+    steps:
+    - - name: checkout-code
+        template: git-clone
+    - - name: run-tests
+        template: run-tests
+        arguments:
+          artifacts:
+          - name: source
+            from: "{{steps.checkout-code.outputs.artifacts.source}}"
+    - - name: build-push-image
+        template: build-push-image
+        arguments:
+          artifacts:
+          - name: source
+            from: "{{steps.checkout-code.outputs.artifacts.source}}"
+          parameters:
+          - name: image-name
+            value: "{{workflow.parameters.image-name}}"
+
+  - name: git-clone
+    inputs:
+      parameters:
+      - name: repo-url
+      - name: branch
+    container:
+      image: alpine/git:latest
+      command: [sh, -c]
+      args:
+        - |
+          echo " Auto-cloning on push event..."
+          git clone -b {{inputs.parameters.branch}} {{inputs.parameters.repo-url}} /src
+          cd /src
+          echo " Auto-build triggered for commit: $(git log -1 --oneline)"
+    outputs:
+      artifacts:
+      - name: source
+        path: /src
+        archive:
+          none: {}
+
+  - name: run-tests
+    inputs:
+      artifacts:
+      - name: source
+        path: /src
+    container:
+      image: node:18-alpine
+      workingDir: /src
+      command: [sh, -c]
+      args:
+        - |
+          echo " Auto-installing dependencies..."
+          npm install
+          echo " Auto-running tests..."
+          npm test
+          echo " All tests passed automatically! "
+
+  - name: build-push-image
+    inputs:
+      artifacts:
+      - name: source
+        path: /src
+      parameters:
+      - name: image-name
+    container:
+      image: docker:24.0-cli
+      workingDir: /src
+      command: [sh, -c]
+      args:
+        - |
+          echo " Auto-login to DockerHub..."
+          docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+          echo " Auto-building image..."
+          docker build -t {{inputs.parameters.image-name}}:latest .
+          echo " Auto-pushing image..."
+          docker push {{inputs.parameters.image-name}}:latest
+          echo " Auto-build complete! Image pushed: {{inputs.parameters.image-name}}:latest "
+      env:
+      - name: DOCKERHUB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: username
+      - name: DOCKERHUB_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: token
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock

@@ -1,0 +1,112 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: patient-appointment-build-
+spec:
+  entrypoint: main-pipeline
+  
+  templates:
+  - name: main-pipeline
+    steps:
+    - - name: checkout-code
+        template: git-clone
+    - - name: run-tests
+        template: run-tests
+        arguments:
+          artifacts:
+          - name: source
+            from: "{{steps.checkout-code.outputs.artifacts.source}}"
+    - - name: build-push-image
+        template: build-push-image
+        arguments:
+          artifacts:
+          - name: source
+            from: "{{steps.checkout-code.outputs.artifacts.source}}"
+
+  - name: git-clone
+    container:
+      image: alpine/git:latest
+      command: [sh, -c]
+      args:
+        - |
+          echo "📦 Cloning patient appointment API..."
+          git clone -b main https://github.com/vasplustechnologies/patient-appointment-api.git /src
+          cd /src
+          echo " Repository cloned successfully"
+          echo " Latest commit: $(git log -1 --oneline)"
+    outputs:
+      artifacts:
+      - name: source
+        path: /src
+        archive:
+          none: {}
+
+  - name: run-tests
+    inputs:
+      artifacts:
+      - name: source
+        path: /src
+    container:
+      image: node:18-alpine
+      workingDir: /src
+      command: [sh, -c]
+      args:
+        - |
+          echo " Installing dependencies..."
+          npm install
+          echo " Running tests..."
+          npm test
+          echo " All tests passed! "
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+        limits:
+          memory: "1Gi"
+          cpu: "1000m"
+
+  - name: build-push-image
+    inputs:
+      artifacts:
+      - name: source
+        path: /src
+    container:
+      image: docker:24.0-cli
+      workingDir: /src
+      command: [sh, -c]
+      args:
+        - |
+          echo " Logging into DockerHub..."
+          docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+          echo " Building Docker image..."
+          docker build -t mofwili/patient-appointment-api:latest .
+          echo " Pushing image to DockerHub..."
+          docker push mofwili/patient-appointment-api:latest
+          echo " Image pushed successfully! "
+          echo " Image: mofwili/patient-appointment-api:latest"
+      env:
+      - name: DOCKERHUB_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: username
+      - name: DOCKERHUB_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: token
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock

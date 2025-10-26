@@ -1,0 +1,69 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: build-app-
+spec:
+  entrypoint: main
+  templates:
+  - name: main
+    steps:
+    - - name: clone-and-test
+        template: clone-test
+    - - name: build-and-push
+        template: build-push
+
+  - name: clone-test
+    container:
+      image: alpine/git
+      command: [sh, -c]
+      args: ["git clone https://github.com/vasplustechnologies/patient-appointment-api.git /app && cd /app"]
+    outputs:
+      artifacts:
+      - name: source
+        path: /app
+
+  - name: build-push
+    inputs:
+      artifacts:
+      - name: source
+        path: /app
+    container:
+      image: docker:24.0
+      workingDir: /app
+      command: [sh, -c]
+      args:
+        - |
+          # Install Node.js to run tests
+          apk add --no-cache nodejs npm
+          
+          echo "=== RUNNING TESTS ==="
+          npm install
+          npm test
+          
+          echo "=== BUILDING IMAGE ==="
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker build -t mofwili/patient-appointment-api:latest .
+          
+          echo "=== PUSHING TO DOCKERHUB ==="
+          docker push mofwili/patient-appointment-api:latest
+          
+          echo " SUCCESS! Image pushed to DockerHub"
+      env:
+      - name: DOCKER_USER
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: username
+      - name: DOCKER_PASS
+        valueFrom:
+          secretKeyRef:
+            name: dockerhub-credentials
+            key: token
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
