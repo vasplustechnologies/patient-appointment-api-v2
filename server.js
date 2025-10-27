@@ -16,7 +16,7 @@ let appointmentId = 1;
 
 // Routes
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'API is running...' });
+  res.status(200).json({ status: 'OK', message: 'API is running!' });
 });
 
 app.get('/appointments', (req, res) => {
@@ -34,7 +34,7 @@ app.post('/appointments', (req, res) => {
   if (!patientName || !doctorName || !date || !time) {
     return res.status(400).json({
       success: false,
-      message: 'Please provide Patient Name, Doctor Name, date, and time..'
+      message: 'Please provide Patient Name, Doctor Name, date, and time!'
     });
   }
 
@@ -62,7 +62,7 @@ app.get('/appointments/:id', (req, res) => {
   if (!appointment) {
     return res.status(404).json({
       success: false,
-      message: 'Appointment not found'
+      message: 'Appointment not found!'
     });
   }
 
@@ -78,7 +78,7 @@ app.delete('/appointments/:id', (req, res) => {
   if (appointmentIndex === -1) {
     return res.status(404).json({
       success: false,
-      message: 'Appointment not found'
+      message: 'Appointment not found!'
     });
   }
 
@@ -86,7 +86,7 @@ app.delete('/appointments/:id', (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: 'Appointment deleted successfully'
+    message: 'Appointment deleted successfully!'
   });
 });
 
