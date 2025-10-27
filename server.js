@@ -16,7 +16,7 @@ let appointmentId = 1;
 
 // Routes
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'API is running' });
+  res.status(200).json({ status: 'OK', message: 'API is running...' });
 });
 
 app.get('/appointments', (req, res) => {
@@ -34,7 +34,7 @@ app.post('/appointments', (req, res) => {
   if (!patientName || !doctorName || !date || !time) {
     return res.status(400).json({
       success: false,
-      message: 'Please provide patientName, doctorName, date, and time..'
+      message: 'Please provide Patient Name, Doctor Name, date, and time..'
     });
   }
 
