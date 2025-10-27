@@ -92,10 +92,10 @@ app.delete('/appointments/:id', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log("=========================================>");
+  console.log("|=========================================>");
   console.log("Patient Appointment API running on port.. " + PORT);
   console.log("Health check: http://localhost:" + PORT + "/health");
-  console.log("<=========================================");
+  console.log("<=========================================|");
 });
 
 module.exports = app;
